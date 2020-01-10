@@ -6,5 +6,5 @@ channels:
 dependencies:
     - bwa
     - snakemake-minimal=5.8.1
-    - samtools
+    - samtools=1.9
     - bcftools
