@@ -11,8 +11,6 @@ rule uncompress_genome:
         "gunzip ecoli-rel606.fa.gz"
 
 rule index_genome_bwa:
-    input:
-        "ecoli-rel606.fa"
     output:
         "ecoli-rel606.fa.amb",
         "ecoli-rel606.fa.ann",
@@ -26,8 +24,6 @@ rule map_reads:
     input:
         "ecoli-rel606.fa.amb",
         "SRR2584857_1.fastq.gz"
-    output:
-        "SRR2584857.sam"
     shell:
         "bwa mem -t 4 ecoli-rel606.fa SRR2584857_1.fastq.gz > SRR2584857.sam"
 
