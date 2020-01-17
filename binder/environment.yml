@@ -1,4 +1,4 @@
-name: spacegraphcats
+name: vc
 channels:
     - conda-forge
     - bioconda
