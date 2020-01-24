@@ -1,16 +1,23 @@
-rule download_data:
+# copy data from /home/ctbrown/data/ggg201b
+rule copy_data:
+    output: "SRR2584857_1.fastq.gz"
     shell:
-        "wget https://osf.io/4rdza/download -O SRR2584857_1.fastq.gz"
+        "ln -s /home/ctbrown/data/ggg201b/SRR2584857_1.fastq.gz ."
 
 rule download_genome:
+    output:
+        "ecoli-rel606.fa.gz"
     shell:
         "wget https://osf.io/8sm92/download -O ecoli-rel606.fa.gz"
 
 rule uncompress_genome:
+    input: "ecoli-rel606.fa.gz"
+    output: "ecoli-rel606.fa"
     shell:
         "gunzip ecoli-rel606.fa.gz"
 
 rule index_genome_bwa:
+    input: "ecoli-rel606.fa"
     output:
         "ecoli-rel606.fa.amb",
         "ecoli-rel606.fa.ann",
@@ -24,6 +31,8 @@ rule map_reads:
     input:
         "ecoli-rel606.fa.amb",
         "SRR2584857_1.fastq.gz"
+    output:
+        "SRR2584857.sam"
     shell:
         "bwa mem -t 4 ecoli-rel606.fa SRR2584857_1.fastq.gz > SRR2584857.sam"
 
@@ -52,6 +61,8 @@ rule samtools_sort:
         "samtools sort SRR2584857.bam -o SRR2584857.sorted.bam"
 
 rule samtools_index_sorted:
+    input: "SRR2584857.sorted.bam"
+    output: "SRR2584857.sorted.bam.bai"
     shell: "samtools index SRR2584857.sorted.bam"
 
 rule samtools_mpileup:
@@ -62,6 +73,7 @@ rule samtools_mpileup:
     bcftools call -mv -Ob -o - > variants.raw.bcf"""
 
 rule make_vcf:
+    input: "variants.raw.bcf"
     output: "variants.vcf"
     shell: "bcftools view variants.raw.bcf > variants.vcf"
 
