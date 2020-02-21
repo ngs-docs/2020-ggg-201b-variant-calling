@@ -8,7 +8,10 @@ rule all:
     input:
         # create a new filename for every entry in SAMPLES,
         # replacing {name} with each entry.
-        expand("{name}-variants.vcf", name=SAMPLES)
+        expand("{name}-variants.vcf", name=SAMPLES),
+        expand("{name}.stats_unmapped.txt", name=SAMPLES),
+        expand("{name}.genome_coverage.txt", name=SAMPLES),
+        "stats_unmapped.txt.all"
 
 # copy data from /home/ctbrown/data/ggg201b
 rule copy_data:
@@ -95,3 +98,22 @@ rule make_vcf:
     shell: "bcftools view {wildcards.sample}-variants.raw.bcf > {wildcards.sample}-variants.vcf"
 
 ## samtools tview -p ecoli:4202391 SRR2584857_1.sorted.bam ecoli-rel606.fa
+
+rule samtools_count_unmapped:
+    input: "{sample}.sorted.bam"
+    output: "{sample}.stats_unmapped.txt"
+    shell: "samtools view -c -f 4 {input} > {output}"
+
+rule samtools_genome_coverage:
+    input: "{sample}.sorted.bam"
+    output: "{sample}.genome_coverage.txt"
+    shell: "genomeCoverageBed -ibam {input} > {output}"
+
+rule summarize_count_unmapped:
+    input: expand("{name}.stats_unmapped.txt", name=SAMPLES),
+    output: "stats_unmapped.txt.all"
+    shell: """for i in {input}
+        do
+            echo $i $(cat $i)
+        done > {output}
+    """
