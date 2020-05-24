@@ -3,27 +3,39 @@
 rule download_data:
     output: "SRR2584857_1.fastq.gz"
     shell:
-        "wget https://osf.io/4rdza/download -O SRR2584857_1.fastq.gz"
+        "wget https://osf.io/4rdza/download -O {output}"
 
 rule download_genome:
     output:
         "ecoli-rel606.fa.gz"
     shell:
-        "wget https://osf.io/8sm92/download -O ecoli-rel606.fa.gz"
+        "wget https://osf.io/8sm92/download -O {output}"
 
 rule uncompress_genome:
     input: "ecoli-rel606.fa.gz"
     output: "ecoli-rel606.fa"
     shell:
-        "gunzip ecoli-rel606.fa.gz"
+        "gunzip -c {input} > {output}"
 
 rule index_genome_bwa:
+    input: "ecoli-rel606.fa"
+    output:
+        "ecoli-rel606.fa.sa",
+        "ecoli-rel606.fa.amb",
+        "ecoli-rel606.fa.ann",
+        "ecoli-rel606.fa.pac",
+        "ecoli-rel606.fa.bwt",
     shell:
-        "bwa index ecoli-rel606.fa"
+        "bwa index {input}"
 
 rule map_reads:
+    input:
+        genome="ecoli-rel606.fa",
+        reads="SRR2584857_1.fastq.gz",
+        index="ecoli-rel606.fa.sa",
+    output: "SRR2584857.sam"
     shell:
-        "bwa mem -t 4 ecoli-rel606.fa SRR2584857_1.fastq.gz > SRR2584857.sam"
+        "bwa mem -t 4 {input.genome} {input.reads} > {output}"
 
 rule index_genome_samtools:
     shell:
