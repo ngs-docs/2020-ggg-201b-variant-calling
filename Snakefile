@@ -38,28 +38,47 @@ rule map_reads:
         "bwa mem -t 4 {input.genome} {input.reads} > {output}"
 
 rule index_genome_samtools:
+    input: "ecoli-rel606.fa"
+    output: "ecoli-rel606.fa.fai"
     shell:
-        "samtools faidx ecoli-rel606.fa"
+        "samtools faidx {input}"
 
 rule samtools_import:
+    input:
+        index="ecoli-rel606.fa.fai",
+        samfile="SRR2584857.sam"
+    output:
+        "SRR2584857.bam"
     shell:
-        "samtools import ecoli-rel606.fa.fai SRR2584857.sam SRR2584857.bam"
+        "samtools import {input.index} {input.samfile} {output}"
 
 rule samtools_sort:
+    input: "SRR2584857.bam"
+    output: "SRR2584857.sorted.bam"
     shell:
-        "samtools sort SRR2584857.bam -o SRR2584857.sorted.bam"
+        "samtools sort {input} -o {output}"
 
 rule samtools_index_sorted:
-    shell: "samtools index SRR2584857.sorted.bam"
-
+    input: "SRR2584857.sorted.bam"
+    output: "SRR2584857.sorted.bam.bai"
+    shell: "samtools index {input}"
 
 rule samtools_mpileup:
-    shell:
-        """samtools mpileup -u -t DP -f ecoli-rel606.fa SRR2584857.sorted.bam | \
-    bcftools call -mv -Ob -o - > variants.raw.bcf"""
+    input:
+        index="ecoli-rel606.fa",
+        sorted="SRR2584857.sorted.bam",
+        sorted_bai="SRR2584857.sorted.bam.bai"
+    output:
+        "variants.raw.bcf"
+    shell: """
+        samtools mpileup -u -t DP -f {input.index} {input.sorted} | \
+             bcftools call -mv -Ob -o - > {output}
+    """
 
 rule make_vcf:
-    shell: "bcftools view variants.raw.bcf > variants.vcf"
+    input: "variants.raw.bcf",
+    output: "variants.vcf"
+    shell: "bcftools view {input} > {output}"
 
 # at end, run:
 ## samtools tview -p ecoli:4202391 SRR2584857.sorted.bam ecoli-rel606.fa
