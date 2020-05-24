@@ -1,14 +1,19 @@
 # download data from https://osf.io/vzfc6/
 
 rule download_data:
+    output: "SRR2584857_1.fastq.gz"
     shell:
         "wget https://osf.io/4rdza/download -O SRR2584857_1.fastq.gz"
 
 rule download_genome:
+    output:
+        "ecoli-rel606.fa.gz"
     shell:
         "wget https://osf.io/8sm92/download -O ecoli-rel606.fa.gz"
 
 rule uncompress_genome:
+    input: "ecoli-rel606.fa.gz"
+    output: "ecoli-rel606.fa"
     shell:
         "gunzip ecoli-rel606.fa.gz"
 
