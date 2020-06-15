@@ -1,0 +1,15 @@
+*.bcf
+*.vcf
+*.sam
+*.bam
+*.gz
+*.fastq
+*.amb
+*.ann
+*.bwt
+*.fai
+*.pac
+*.sa
+ecoli-rel606.fa
+*~
+.snakemake

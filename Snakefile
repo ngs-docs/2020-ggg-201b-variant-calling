@@ -1,21 +1,46 @@
-rule download_data:
+# list out samples
+SAMPLES=['SRR2584403_1',
+	 'SRR2584405_1',
+         'SRR2584404_1',
+         'SRR2584857_1']
+
+rule all:
+    input:
+        # create a new filename for every entry in SAMPLES,
+        # replacing {name} with each entry.
+        expand("{name}-variants.vcf", name=SAMPLES),
+        expand("{name}.stats_unmapped.txt", name=SAMPLES),
+        expand("{name}.genome_coverage.txt", name=SAMPLES),
+        "stats_unmapped.txt.all"
+
+# copy data from /home/ctbrown/data/ggg201b
+rule copy_data:
+    input:
+        "/home/ctbrown/data/ggg201b/{sample}.fastq.gz"
+    output: "{sample,[a-zA-Z0-9_]+}.fastq.gz"
     shell:
-        "wget https://osf.io/4rdza/download -O SRR2584857_1.fastq.gz"
+        "ln -fs {input} {output}"
 
 rule download_genome:
+    output:
+        "ecoli-rel606.fa.gz"
     shell:
         "wget https://osf.io/8sm92/download -O ecoli-rel606.fa.gz"
 
 rule uncompress_genome:
+    input:
+        "ecoli-rel606.fa.gz"
+    output:
+        "ecoli-rel606.fa"
     shell:
         "gunzip ecoli-rel606.fa.gz"
 
 rule index_genome_bwa:
+    input:
+        "ecoli-rel606.fa"
     output:
         "ecoli-rel606.fa.amb",
         "ecoli-rel606.fa.ann",
-        "ecoli-rel606.fa.bwt",
-        "ecoli-rel606.fa.pac",
         "ecoli-rel606.fa.sa"
     shell:
         "bwa index ecoli-rel606.fa"
@@ -23,9 +48,11 @@ rule index_genome_bwa:
 rule map_reads:
     input:
         "ecoli-rel606.fa.amb",
-        "SRR2584857_1.fastq.gz"
+        "{sample}.fastq.gz"
+    output:
+        "{sample}.sam"
     shell:
-        "bwa mem -t 4 ecoli-rel606.fa SRR2584857_1.fastq.gz > SRR2584857.sam"
+        "bwa mem -t 4 ecoli-rel606.fa {wildcards.sample}.fastq.gz > {wildcards.sample}.sam"
 
 rule index_genome_samtools:
     input:
@@ -35,34 +62,58 @@ rule index_genome_samtools:
     shell:
         "samtools faidx ecoli-rel606.fa"
 
+
 rule samtools_import:
     input:
-        "ecoli-rel606.fa.fai", "SRR2584857.sam"
+        "ecoli-rel606.fa.fai", "{sample}.sam"
     output:
-        "SRR2584857.bam"
+        "{sample}.bam"
     shell:
-        "samtools import ecoli-rel606.fa.fai SRR2584857.sam SRR2584857.bam"
+        "samtools import ecoli-rel606.fa.fai {wildcards.sample}.sam {wildcards.sample}.bam"
 
 rule samtools_sort:
     input:
-        "SRR2584857.bam"
+        "{sample}.bam"
     output:
-        "SRR2584857.sorted.bam"
+        "{sample}.sorted.bam"
     shell:
-        "samtools sort SRR2584857.bam -o SRR2584857.sorted.bam"
+        "samtools sort {wildcards.sample}.bam -o {wildcards.sample}.sorted.bam"
 
 rule samtools_index_sorted:
-    shell: "samtools index SRR2584857.sorted.bam"
+    input: "{sample}.sorted.bam"
+    output: "{sample}.sorted.bam.bai"
+    shell: "samtools index {wildcards.sample}.sorted.bam"
+
 
 rule samtools_mpileup:
-    input: "ecoli-rel606.fa", "SRR2584857.sorted.bam.bai"
-    output: "variants.raw.bcf"
+    input: "ecoli-rel606.fa", "{sample}.sorted.bam"
+    output: "{sample}-variants.raw.bcf"
     shell:
-        """samtools mpileup -u -t DP -f ecoli-rel606.fa SRR2584857.sorted.bam | \
-    bcftools call -mv -Ob -o - > variants.raw.bcf"""
+        """samtools mpileup -u -t DP -f ecoli-rel606.fa {wildcards.sample}.sorted.bam | \
+    bcftools call -mv -Ob -o - > {wildcards.sample}-variants.raw.bcf"""
 
 rule make_vcf:
-    output: "variants.vcf"
-    shell: "bcftools view variants.raw.bcf > variants.vcf"
+    input: "{sample}-variants.raw.bcf"
+    output: "{sample}-variants.vcf"
+    shell: "bcftools view {wildcards.sample}-variants.raw.bcf > {wildcards.sample}-variants.vcf"
 
-## samtools tview -p ecoli:4202391 SRR2584857.sorted.bam ecoli-rel606.fa
+## samtools tview -p ecoli:4202391 SRR2584857_1.sorted.bam ecoli-rel606.fa
+
+rule samtools_count_unmapped:
+    input: "{sample}.sorted.bam"
+    output: "{sample}.stats_unmapped.txt"
+    shell: "samtools view -c -f 4 {input} > {output}"
+
+rule samtools_genome_coverage:
+    input: "{sample}.sorted.bam"
+    output: "{sample}.genome_coverage.txt"
+    shell: "genomeCoverageBed -ibam {input} > {output}"
+
+rule summarize_count_unmapped:
+    input: expand("{name}.stats_unmapped.txt", name=SAMPLES),
+    output: "stats_unmapped.txt.all"
+    shell: """for i in {input}
+        do
+            echo $i $(cat $i)
+        done > {output}
+    """
